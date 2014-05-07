@@ -137,7 +137,7 @@ function mlmlora_export_pids_jpg_as_zip_finished($success, $results, $operations
       $message = format_plural(count($results['errors']), 'Object missing MEDIUM_SIZE datastream: %pids', 'Objects missing MEDIUM_SIZE datastream: %pids', array('%pids' => implode(', ', $results['errors'])));
       drupal_set_message($message, 'warn');
     }
-    if(!isset($results['files'])) {
+    if (!isset($results['files'])) {
       drupal_set_message(t('No objects have the MEDIUM_SIZE datastream'), 'warn');
       file_unmanaged_delete($results['zip_file']);
     }
