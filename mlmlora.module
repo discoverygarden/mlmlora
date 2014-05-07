@@ -29,7 +29,7 @@ function mlmlora_menu() {
 function mlmlora_islandora_bookmark_export_handler() {
   return array(
     t('MLML') => array(
-      'JPG Datastream ZIP' => 'mlmlora_export_pids_jpg_as_zip',
+      'MEDIUM_SIZE Datastream ZIP' => 'mlmlora_export_pids_jpg_as_zip',
     ),
   );
 }
