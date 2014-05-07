@@ -1,0 +1,211 @@
+<?php
+
+/**
+ * @file
+ * Module used to customize islandora for MLML.
+ */
+
+/**
+ * Constants
+ */
+define('MLML_BOOKMARK_JPG_DOWNLOAD_MENU', 'mlml-jpg-download');
+
+/**
+ * Implements hook_menu().
+ */
+function mlmlora_menu() {
+  $items = array();
+  $items[MLML_BOOKMARK_JPG_DOWNLOAD_MENU] = array(
+    'page callback' => 'mlmlora_export_pids_jpg_as_zip_download_zip_file',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_islandora_bookmark_export_handler().
+ */
+function mlmlora_islandora_bookmark_export_handler() {
+  return array(
+    t('MLML') => array(
+      'MEDIUM_SIZE Datastream ZIP' => 'mlmlora_export_pids_jpg_as_zip',
+    ),
+  );
+}
+
+/**
+ * Islandora Bookmark handler for MLML.
+ *
+ * @param array $pids
+ *   List of pids from the Bookmark module.
+ */
+function mlmlora_export_pids_jpg_as_zip($pids) {
+  $batch = array(
+    'title' => t('Downloading files for zip'),
+    'progress_message' => t('Completed @current operations out of @total.'),
+    'operations' => array(),
+    'finished' => 'mlmlora_export_pids_jpg_as_zip_finished',
+  );
+
+  $config = array(
+    'zip_file' => drupal_tempnam('temporary://', 'bookmark-jpg-download'),
+  );
+
+  foreach ($pids as $pid) {
+    $config['pid'] = $pid;
+    $batch['operations'][] = array(
+      'mlmlora_export_pids_jpg_as_zip_download_jpg_file',
+      array($config),
+    );
+  }
+  $batch['operations'][] = array(
+    'mlmlora_export_pids_jpg_as_zip_file',
+    array($config['zip_file']),
+  );
+  batch_set($batch);
+}
+
+/**
+ * Download MEDIUM_SIZE datastream to temp file for later zipping.
+ *
+ * @param array $config
+ *   Batch config containing pid and zip file name.
+ *
+ * @param array $context
+ *   Batch context for storing data between operations.
+ */
+function mlmlora_export_pids_jpg_as_zip_download_jpg_file($config = array(), &$context = array()) {
+  if (!isset($context['results']['zip_file'])) {
+    $context['results']['zip_file'] = $config['zip_file'];
+  }
+
+  $pid = $config['pid'];
+  $object = islandora_object_load($pid);
+  if (isset($object['MEDIUM_SIZE']) && islandora_datastream_access(ISLANDORA_VIEW_OBJECTS, $object['MEDIUM_SIZE'])) {
+    $context['results']['added'][] = $pid;
+    $base_name = str_replace(':', '-', $object->id);
+    $mime_detector = new MimeDetect();
+    $ext = $mime_detector->getExtension($object['MEDIUM_SIZE']->mimeType);
+    $filename = file_create_filename("{$base_name}_MEDIUM_SIZE.{$ext}", 'temporary://');
+    $object['MEDIUM_SIZE']->getContent($filename);
+    $context['results']['files'][] = $filename;
+  }
+  else {
+    $context['results']['errors'][] = $pid;
+  }
+}
+
+/**
+ * Takes all the temp MEDIUM_SIZE datastreams and zips them up.
+ *
+ * @param string $zip_file
+ *   Zip file location.
+ *
+ * @param array $context
+ *   Batch context for storing data between operations.
+ */
+function mlmlora_export_pids_jpg_as_zip_file($zip_file, &$context = array()) {
+  $path = drupal_realpath($zip_file);
+  $zip = new ZipArchive();
+  if ($zip->open($path, ZIPARCHIVE::CREATE) === TRUE) {
+    foreach ($context['results']['files'] as $temp) {
+      $base = drupal_basename($temp);
+      $zip->addFile(drupal_realpath($temp), $base);
+    }
+    $zip->close();
+
+    foreach ($context['results']['files'] as $temp) {
+      file_unmanaged_delete($temp);
+    }
+  }
+}
+
+/**
+ * Stores zip file for download in session.
+ *
+ * @param bool $success
+ *   Was the batch process succesful?
+ * @param array $results
+ *   The results returned from the batch process.
+ * @param array $operations
+ *   The operations that were part of the batch process.
+ */
+function mlmlora_export_pids_jpg_as_zip_finished($success, $results, $operations) {
+  if ($success) {
+    if (isset($results['errors'])) {
+      $message = format_plural(count($results['errors']), 'Object missing MEDIUM_SIZE datastream: %pids', 'Objects missing MEDIUM_SIZE datastream: %pids', array('%pids' => implode(', ', $results['errors'])));
+      drupal_set_message($message, 'warn');
+    }
+    if (!isset($results['files'])) {
+      drupal_set_message(t('No objects have the MEDIUM_SIZE datastream'), 'warn');
+      file_unmanaged_delete($results['zip_file']);
+    }
+    else {
+      $_SESSION['mlml-jpg-download-file'] = $results['zip_file'];
+    }
+  }
+  else {
+    drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mlmlora_form_islandora_bookmark_detailed_form_alter(array &$form, array &$form_state) {
+  if (isset($_SESSION['mlml-jpg-download-file'])) {
+    $mlml_download_zip_head = array(
+      '#type' => 'html_tag',
+      '#tag' => 'meta',
+      '#attributes' => array(
+        'http-equiv' => 'refresh',
+        'content' => '1.0;' . url(MLML_BOOKMARK_JPG_DOWNLOAD_MENU, array('absolute' => TRUE)),
+      ),
+    );
+    drupal_add_html_head($mlml_download_zip_head, 'mlml_download_zip_head');
+  }
+}
+
+/**
+ * Download zip file to client from file specified in session.
+ */
+function mlmlora_export_pids_jpg_as_zip_download_zip_file() {
+  $file_uri = $_SESSION['mlml-jpg-download-file'];
+  unset($_SESSION['mlml-jpg-download-file']);
+  if ($file_uri) {
+    $filepath = file_unmanaged_move($file_uri, 'public://', FILE_EXISTS_REPLACE);
+    if (file_exists($filepath)) {
+      $file_size = filesize($filepath);
+      $download_filename = drupal_basename($file_uri);
+      header("Content-type: application/zip");
+      header("Content-length: $file_size");
+      header("Content-Disposition: attachment; filename=\"$download_filename\"");
+      header("Cache-control: protected");
+      $curl_handle = curl_init();
+      if ($curl_handle !== FALSE) {
+        $url = file_create_url($filepath);
+        curl_setopt($curl_handle, CURLOPT_SSL_VERIFYPEER, FALSE);
+        curl_setopt($curl_handle, CURLOPT_SSL_VERIFYHOST, FALSE);
+        // Fail on errors.
+        curl_setopt($curl_handle, CURLOPT_FAILONERROR, 1);
+        // Allow redirects.
+        curl_setopt($curl_handle, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($curl_handle, CURLOPT_USERAGENT, "Mozilla/4.0 pp(compatible; MSIE 5.01; Windows NT 5.0)");
+        // Return into a variable.
+        curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 0);
+        curl_setopt($curl_handle, CURLOPT_URL, $url);
+      }
+      curl_exec($curl_handle);
+      curl_close($curl_handle);
+
+      file_unmanaged_delete($filepath);
+    }
+    else {
+      drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
+    }
+  }
+  else {
+    drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
+  }
+}
