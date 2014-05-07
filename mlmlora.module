@@ -82,14 +82,13 @@ function mlmlora_export_pids_jpg_as_zip_download_jpg_file($config = array(), &$c
 
   $pid = $config['pid'];
   $object = islandora_object_load($pid);
-
-  if (isset($object['TN'])) {
+  if (isset($object['MEDIUM_SIZE']) && islandora_datastream_access(ISLANDORA_VIEW_OBJECTS, $object['MEDIUM_SIZE'])) {
     $context['results']['added'][] = $pid;
     $base_name = str_replace(':', '-', $object->id);
     $mime_detector = new MimeDetect();
-    $ext = $mime_detector->getExtension($object['TN']->mimeType);
-    $filename = file_create_filename("{$base_name}_TN.{$ext}", 'temporary://');
-    $object['TN']->getContent($filename);
+    $ext = $mime_detector->getExtension($object['MEDIUM_SIZE']->mimeType);
+    $filename = file_create_filename("{$base_name}_MEDIUM_SIZE.{$ext}", 'temporary://');
+    $object['MEDIUM_SIZE']->getContent($filename);
     $context['results']['files'][] = $filename;
   }
   else {
@@ -134,10 +133,37 @@ function mlmlora_export_pids_jpg_as_zip_file($zip_file, &$context = array()) {
  */
 function mlmlora_export_pids_jpg_as_zip_finished($success, $results, $operations) {
   if ($success) {
-    $_SESSION['mlml-jpg-download-file'] = $results['zip_file'];
+    if (isset($results['errors'])) {
+      $message = format_plural(count($results['errors']), 'Object missing MEDIUM_SIZE datastream: %pids', 'Objects missing MEDIUM_SIZE datastream: %pids', array('%pids' => implode(', ', $results['errors'])));
+      drupal_set_message($message, 'warn');
+    }
+    if(!isset($results['files'])) {
+      drupal_set_message(t('No objects have the MEDIUM_SIZE datastream'), 'warn');
+      file_unmanaged_delete($results['zip_file']);
+    }
+    else {
+      $_SESSION['mlml-jpg-download-file'] = $results['zip_file'];
+    }
   }
   else {
-    // Error out to user.
+    drupal_set_message(t('Failed to export JPG datastreams.'), 'error');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function mlmlora_form_islandora_bookmark_detailed_form_alter(array &$form, array &$form_state) {
+  if (isset($_SESSION['mlml-jpg-download-file'])) {
+    $mlml_download_zip_head = array(
+      '#type' => 'html_tag',
+      '#tag' => 'meta',
+      '#attributes' => array(
+        'http-equiv' => 'refresh',
+        'content' => '1.0;' . url(MLML_BOOKMARK_JPG_DOWNLOAD_MENU, array('absolute' => TRUE)),
+      ),
+    );
+    drupal_add_html_head($mlml_download_zip_head, 'mlml_download_zip_head');
   }
 }
 
@@ -172,23 +198,14 @@ function mlmlora_export_pids_jpg_as_zip_download_zip_file() {
       }
       curl_exec($curl_handle);
       curl_close($curl_handle);
+
+      file_unmanaged_delete($filepath);
     }
     else {
-      drupal_goto('islandora-bookmark');
+      drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
     }
   }
   else {
-    drupal_goto('islandora-bookmark');
-  }
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- */
-function mlmlora_form_islandora_bookmark_detailed_form_alter(array &$form, array &$form_state) {
-  if (isset($_SESSION['mlml-jpg-download-file'])) {
-    dsm('alter');
-    $form_state['redirect'] = MLML_BOOKMARK_JPG_DOWNLOAD_MENU;
-    drupal_redirect_form($form_state);
+    drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
   }
 }
