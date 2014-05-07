@@ -67,7 +67,7 @@ function mlmlora_export_pids_jpg_as_zip($pids) {
 }
 
 /**
- * Download JPG datastream to temp file for later zipping.
+ * Download MEDIUM_SIZE datastream to temp file for later zipping.
  *
  * @param array $config
  *   Batch config containing pid and zip file name.
@@ -97,7 +97,7 @@ function mlmlora_export_pids_jpg_as_zip_download_jpg_file($config = array(), &$c
 }
 
 /**
- * Takes all the temp JPG datastreams and zips them up.
+ * Takes all the temp MEDIUM_SIZE datastreams and zips them up.
  *
  * @param string $zip_file
  *   Zip file location.
@@ -146,7 +146,7 @@ function mlmlora_export_pids_jpg_as_zip_finished($success, $results, $operations
     }
   }
   else {
-    drupal_set_message(t('Failed to export JPG datastreams.'), 'error');
+    drupal_set_message(t('Failed to export MEDIUM_SIZE datastreams.'), 'error');
   }
 }
 
