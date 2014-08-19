@@ -214,5 +214,9 @@ function mlmlora_export_pids_jpg_as_zip_download_zip_file() {
  * Implements hook_form_FORM_ID_alter().
  */
 function mlmlora_form_islandora_entities_citation_form_alter(&$form, &$form_state, $form_id) {
-  $form['citations']['#header']['authors'] = '';
+  unset($form['citations']['#header']['authors']);
+  foreach ($form['citations']['#options'] as $key => $row) {
+    unset($form['citations']['#options'][$key]['authors']);
+
+  }
 }
