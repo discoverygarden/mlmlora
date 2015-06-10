@@ -216,3 +216,19 @@ function mlmlora_export_pids_jpg_as_zip_download_zip_file() {
 function mlmlora_form_islandora_entities_citation_form_alter(&$form, &$form_state, $form_id) {
   $form['citations']['#header']['authors'] = '';
 }
+
+/**
+ * Implements hook_cmodel_pid_islandora_view_object().
+ */
+function mlmlora_islandora_sp_document_islandora_view_object_alter(&$object, &$rendered) {
+  module_load_include('inc', 'mlmlora', 'includes/utilities');
+  $rendered = metrodora_create_download_link($object, array("PDF"), $rendered);
+}
+/**
+ * Implements hook_cmodel_pid_islandora_view_object().
+ */
+function mlmlora_islandora_sp_pfd_islandora_view_object_alter(&$object, &$rendered) {
+  module_load_include('inc', 'mlmlora', 'includes/utilities');
+  $rendered = metrodora_create_download_link($object, array("OBJ"), $rendered);
+}
+
