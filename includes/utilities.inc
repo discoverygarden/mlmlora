@@ -16,9 +16,8 @@
  * @return array
  *   An array of usage stats, to be used as output for theme display.
  */
-function mlmlora_get_stats_details($object, $ds) {
+function metrodora_get_stats_details($object, $ds, $rendered) {
   module_load_include('inc', 'islandora_usage_stats', 'includes/db');
-
   $stats = array();
   // Object View count.
   $stats[] = t("@view_count", array(
@@ -26,8 +25,7 @@ function mlmlora_get_stats_details($object, $ds) {
   ));
   // Grab the download stats for the datastreams on the object.
   $dses = islandora_usage_stats_get_datastream_downloads_count($object->id);
-
- $mapping = array(
+  $mapping = array(
     'islandora:bookCModel' => array('PDF'),
     'islandora:pageCModel' => array('JPG'),
     'islandora:sp_basic_image' => array('MEDIUM_SIZE'),
@@ -51,58 +49,39 @@ function mlmlora_get_stats_details($object, $ds) {
   $stats[] = t("@download_count", array(
     '@download_count' => format_plural($total_downloads, 'Downloaded @count time', 'Downloaded @count times'),
   ));
-  return $stats;
-}
-/**
- * Add datastream download links to the view object page.
- *
- * @param AbstractObject $object
- *   A Tuque FedoraObject.
- * @param array $ds
- *   An array of DSID's to provide a link for.
- * @param array $rendered
- *   The array of rendered views.
- *
- * @return string
- *   The rendered string, including added links.
- */
-function metrodora_create_download_link($object, $ds, $rendered) {
   $print_title = FALSE;
-  $link['dl_link_wrapper'] = array(
+  $download_stats['stats_wrapper'] = array(
     '#type' => 'container',
     '#attributes' => array(
       'class' => array(
-        'download-link-wrapper',
+        'download-stats-wrapper',
       ),
     ),
   );
-  $options = array(
-    "attributes" => array(
-      'title' => NULL,
-    ),
-  );
+  $views = $stats[0];
+  $downloads = $stats[1];
+  $stats = $views."<br />".$downloads;
+
   foreach ($ds as $key => $dsid) {
     // Requested datastream may not be available.
     $access = islandora_datastream_access(ISLANDORA_VIEW_OBJECTS, $object[$dsid]);
     if (isset($object[$dsid]) && $access) {
-      $options['attributes']['title'] = t("Download this object's @dsid datastream", array("@dsid" => $dsid));
-      $name = "ds_link_" . $dsid;
-      $link['dl_link_wrapper'][$name] = array(
-        '#markup' => l(t("Download"), "islandora/object/$object->id/datastream/$dsid/download", $options),
-        '#suffix' => "</br>",
+      $name = "ds_stats_" . $dsid;
+      $download_stats['stats_wrapper'][$name] = array(
+        '#markup' => $stats,
       );
       $print_title = TRUE;
     }
   }
-  // Add the header if there are download links being output to the page.
+    // Add the header if there are stats being output to the page.
   if ($print_title) {
-    $link['dl_link_wrapper']['#prefix'] = '<div class="download-link-container"><h2>Downloads</h2>';
-    $link['dl_link_wrapper']['#suffix'] = '</div>';
+    $download_stats['stats_wrapper']['#prefix'] = '<div class="download-stats-container"><h2>Stats</h2>';
+    $download_stats['stats_wrapper']['#suffix'] = '</div>';
   }
-  // Render the created container and links.
-  $link_rendered = render($link);
+  $stats_rendered = render($download_stats);
   foreach ($rendered as $key => $value) {
-    $rendered[$key]['#markup'] .= $link_rendered;
+    $rendered[$key]['#markup'] .= $stats_rendered;
   }
+  dsm($rendered);
   return $rendered;
 }
