@@ -1,6 +1,7 @@
 name = mlmlora
 description = Islandora Customizations for MLML
 dependencies[] = islandora_bookmark
+dependencies[] = islandora_usage_stats
 package = Islandora customizations
 version = 7.x-dev
 core = 7.x
