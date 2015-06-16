@@ -160,7 +160,7 @@ function mlmlora_form_islandora_bookmark_detailed_form_alter(array &$form, array
       '#tag' => 'meta',
       '#attributes' => array(
         'http-equiv' => 'refresh',
-        'content' => '1.0;' . url(MLMLOR_BOOKMARK_JPG_DOWNLOAD_MENU, array('absolute' => TRUE)),
+        'content' => '1.0;' . url(MLMLORA_BOOKMARK_JPG_DOWNLOAD_MENU, array('absolute' => TRUE)),
       ),
     );
     drupal_add_html_head($mlml_download_zip_head, 'mlml_download_zip_head');
