@@ -224,5 +224,5 @@ function mlmlora_form_islandora_entities_citation_form_alter(&$form, &$form_stat
  */
 function mlmlora_islandora_view_object_alter($object, &$content) {
   module_load_include('inc', 'mlmlora', 'includes/utilities');
-  $content += array(mlmlora_get_pdf_stats($object));
+  $content = array(mlmlora_get_pdf_stats($object)) + $content;
 }
